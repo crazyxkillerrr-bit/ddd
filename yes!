@@ -1,0 +1,401 @@
+```lua
+--// NEAREST ENEMY TELEPORT GUI
+--// For your own Roblox game
+--// Place this LocalScript inside StarterPlayer > StarterPlayerScripts
+
+local Players = game:GetService("Players")
+local UserInputService = game:GetService("UserInputService")
+local RunService = game:GetService("RunService")
+
+local LocalPlayer = Players.LocalPlayer
+
+--==================================================
+-- SETTINGS
+--==================================================
+
+local distanceBelow = 10
+local autoTeleport = false
+local toggleKey = Enum.KeyCode.RightShift
+
+--==================================================
+-- CHARACTER
+--==================================================
+
+local function getCharacter()
+	return LocalPlayer.Character
+end
+
+local function getRoot(character)
+	return character and character:FindFirstChild("HumanoidRootPart")
+end
+
+--==================================================
+-- FIND NEAREST ENEMY
+--==================================================
+
+local function getNearestEnemy()
+	local character = getCharacter()
+	local root = getRoot(character)
+
+	if not root then
+		return nil
+	end
+
+	local nearest = nil
+	local nearestDistance = math.huge
+
+	for _, player in ipairs(Players:GetPlayers()) do
+		if player ~= LocalPlayer then
+			local enemyCharacter = player.Character
+			local enemyRoot = getRoot(enemyCharacter)
+			local humanoid = enemyCharacter and enemyCharacter:FindFirstChildOfClass("Humanoid")
+
+			if enemyRoot and humanoid and humanoid.Health > 0 then
+				local distance = (root.Position - enemyRoot.Position).Magnitude
+
+				if distance < nearestDistance then
+					nearestDistance = distance
+					nearest = enemyCharacter
+				end
+			end
+		end
+	end
+
+	return nearest, nearestDistance
+end
+
+--==================================================
+-- TELEPORT
+--==================================================
+
+local function teleportUnderNearestEnemy()
+	local character = getCharacter()
+	local root = getRoot(character)
+
+	if not root then
+		return
+	end
+
+	local enemy, distance = getNearestEnemy()
+
+	if not enemy then
+		return
+	end
+
+	local enemyRoot = getRoot(enemy)
+
+	if not enemyRoot then
+		return
+	end
+
+	-- Put the player directly underneath the enemy.
+	local targetPosition =
+		enemyRoot.Position - Vector3.new(0, distanceBelow, 0)
+
+	-- Keep the player's current rotation.
+	root.CFrame = CFrame.new(targetPosition) * CFrame.Angles(
+		root.Orientation.X * math.pi / 180,
+		root.Orientation.Y * math.pi / 180,
+		root.Orientation.Z * math.pi / 180
+	)
+end
+
+--==================================================
+-- GUI
+--==================================================
+
+local gui = Instance.new("ScreenGui")
+gui.Name = "EnemyTeleportGUI"
+gui.ResetOnSpawn = false
+gui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
+gui.Parent = LocalPlayer:WaitForChild("PlayerGui")
+
+-- Main window
+local main = Instance.new("Frame")
+main.Name = "Main"
+main.Size = UDim2.fromOffset(360, 300)
+main.Position = UDim2.new(0.5, -180, 0.5, -150)
+main.BackgroundColor3 = Color3.fromRGB(18, 18, 24)
+main.BorderSizePixel = 0
+main.Parent = gui
+
+local mainCorner = Instance.new("UICorner")
+mainCorner.CornerRadius = UDim.new(0, 14)
+mainCorner.Parent = main
+
+local stroke = Instance.new("UIStroke")
+stroke.Color = Color3.fromRGB(55, 55, 70)
+stroke.Thickness = 1
+stroke.Transparency = 0.25
+stroke.Parent = main
+
+--==================================================
+-- TOP BAR
+--==================================================
+
+local top = Instance.new("Frame")
+top.Size = UDim2.new(1, 0, 0, 55)
+top.BackgroundTransparency = 1
+top.Parent = main
+
+local title = Instance.new("TextLabel")
+title.Size = UDim2.new(1, -70, 1, 0)
+title.Position = UDim2.fromOffset(20, 0)
+title.BackgroundTransparency = 1
+title.Text = "⚡  ENEMY TELEPORT"
+title.TextColor3 = Color3.fromRGB(245, 245, 255)
+title.TextSize = 18
+title.Font = Enum.Font.GothamBold
+title.TextXAlignment = Enum.TextXAlignment.Left
+title.Parent = top
+
+local subtitle = Instance.new("TextLabel")
+subtitle.Size = UDim2.new(1, -40, 0, 20)
+subtitle.Position = UDim2.fromOffset(20, 43)
+subtitle.BackgroundTransparency = 1
+subtitle.Text = "Teleport beneath the nearest player"
+subtitle.TextColor3 = Color3.fromRGB(130, 130, 145)
+subtitle.TextSize = 11
+subtitle.Font = Enum.Font.Gotham
+subtitle.TextXAlignment = Enum.TextXAlignment.Left
+subtitle.Parent = main
+
+--==================================================
+-- DISTANCE DISPLAY
+--==================================================
+
+local distanceLabel = Instance.new("TextLabel")
+distanceLabel.Size = UDim2.new(1, -40, 0, 30)
+distanceLabel.Position = UDim2.fromOffset(20, 75)
+distanceLabel.BackgroundTransparency = 1
+distanceLabel.Text = "Distance below: 10"
+distanceLabel.TextColor3 = Color3.fromRGB(225, 225, 235)
+distanceLabel.TextSize = 14
+distanceLabel.Font = Enum.Font.GothamSemibold
+distanceLabel.TextXAlignment = Enum.TextXAlignment.Left
+distanceLabel.Parent = main
+
+--==================================================
+-- DISTANCE SLIDER
+--==================================================
+
+local sliderBack = Instance.new("Frame")
+sliderBack.Size = UDim2.new(1, -40, 0, 8)
+sliderBack.Position = UDim2.fromOffset(20, 112)
+sliderBack.BackgroundColor3 = Color3.fromRGB(40, 40, 52)
+sliderBack.BorderSizePixel = 0
+sliderBack.Parent = main
+
+local sliderCorner = Instance.new("UICorner")
+sliderCorner.CornerRadius = UDim.new(1, 0)
+sliderCorner.Parent = sliderBack
+
+local sliderFill = Instance.new("Frame")
+sliderFill.Size = UDim2.new(distanceBelow / 50, 0, 1, 0)
+sliderFill.BackgroundColor3 = Color3.fromRGB(110, 80, 255)
+sliderFill.BorderSizePixel = 0
+sliderFill.Parent = sliderBack
+
+local fillCorner = Instance.new("UICorner")
+fillCorner.CornerRadius = UDim.new(1, 0)
+fillCorner.Parent = sliderFill
+
+local sliderButton = Instance.new("TextButton")
+sliderButton.Size = UDim2.fromOffset(18, 18)
+sliderButton.Position = UDim2.new(distanceBelow / 50, -9, 0.5, -9)
+sliderButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+sliderButton.Text = ""
+sliderButton.AutoButtonColor = false
+sliderButton.Parent = sliderBack
+
+local buttonCorner = Instance.new("UICorner")
+buttonCorner.CornerRadius = UDim.new(1, 0)
+buttonCorner.Parent = sliderButton
+
+local dragging = false
+
+local function updateSlider(inputX)
+	local relative = math.clamp(
+		(inputX - sliderBack.AbsolutePosition.X)
+			/ sliderBack.AbsoluteSize.X,
+		0,
+		1
+	)
+
+	distanceBelow = math.floor(relative * 50 + 0.5)
+
+	sliderFill.Size = UDim2.new(relative, 0, 1, 0)
+	sliderButton.Position = UDim2.new(relative, -9, 0.5, -9)
+
+	distanceLabel.Text = "Distance below: " .. distanceBelow
+end
+
+sliderButton.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1
+		or input.UserInputType == Enum.UserInputType.Touch then
+
+		dragging = true
+	end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+	if dragging then
+		if input.UserInputType == Enum.UserInputType.MouseMovement
+			or input.UserInputType == Enum.UserInputType.Touch then
+
+			updateSlider(input.Position.X)
+		end
+	end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1
+		or input.UserInputType == Enum.UserInputType.Touch then
+
+		dragging = false
+	end
+end)
+
+--==================================================
+-- TELEPORT BUTTON
+--==================================================
+
+local teleportButton = Instance.new("TextButton")
+teleportButton.Size = UDim2.new(1, -40, 0, 50)
+teleportButton.Position = UDim2.fromOffset(20, 140)
+teleportButton.BackgroundColor3 = Color3.fromRGB(105, 75, 235)
+teleportButton.BorderSizePixel = 0
+teleportButton.Text = "TELEPORT UNDER NEAREST"
+teleportButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+teleportButton.TextSize = 14
+teleportButton.Font = Enum.Font.GothamBold
+teleportButton.AutoButtonColor = false
+teleportButton.Parent = main
+
+local teleportCorner = Instance.new("UICorner")
+teleportCorner.CornerRadius = UDim.new(0, 10)
+teleportCorner.Parent = teleportButton
+
+teleportButton.MouseEnter:Connect(function()
+	teleportButton.BackgroundColor3 = Color3.fromRGB(125, 95, 255)
+end)
+
+teleportButton.MouseLeave:Connect(function()
+	teleportButton.BackgroundColor3 = Color3.fromRGB(105, 75, 235)
+end)
+
+teleportButton.MouseButton1Click:Connect(function()
+	teleportUnderNearestEnemy()
+end)
+
+--==================================================
+-- AUTO TELEPORT
+--==================================================
+
+local autoButton = Instance.new("TextButton")
+autoButton.Size = UDim2.new(1, -40, 0, 45)
+autoButton.Position = UDim2.fromOffset(20, 200)
+autoButton.BackgroundColor3 = Color3.fromRGB(32, 32, 42)
+autoButton.BorderSizePixel = 0
+autoButton.Text = "AUTO TELEPORT: OFF"
+autoButton.TextColor3 = Color3.fromRGB(180, 180, 195)
+autoButton.TextSize = 13
+autoButton.Font = Enum.Font.GothamSemibold
+autoButton.AutoButtonColor = false
+autoButton.Parent = main
+
+local autoCorner = Instance.new("UICorner")
+autoCorner.CornerRadius = UDim.new(0, 10)
+autoCorner.Parent = autoButton
+
+autoButton.MouseButton1Click:Connect(function()
+	autoTeleport = not autoTeleport
+
+	if autoTeleport then
+		autoButton.Text = "AUTO TELEPORT: ON"
+		autoButton.TextColor3 = Color3.fromRGB(150, 255, 170)
+		autoButton.BackgroundColor3 = Color3.fromRGB(30, 55, 38)
+	else
+		autoButton.Text = "AUTO TELEPORT: OFF"
+		autoButton.TextColor3 = Color3.fromRGB(180, 180, 195)
+		autoButton.BackgroundColor3 = Color3.fromRGB(32, 32, 42)
+	end
+end)
+
+--==================================================
+-- STATUS
+--==================================================
+
+local status = Instance.new("TextLabel")
+status.Size = UDim2.new(1, -40, 0, 25)
+status.Position = UDim2.fromOffset(20, 255)
+status.BackgroundTransparency = 1
+status.Text = "RightShift = Show / Hide GUI"
+status.TextColor3 = Color3.fromRGB(100, 100, 115)
+status.TextSize = 11
+status.Font = Enum.Font.Gotham
+status.TextXAlignment = Enum.TextXAlignment.Left
+status.Parent = main
+
+--==================================================
+-- DRAGGING
+--==================================================
+
+local draggingWindow = false
+local dragStart
+local startPosition
+
+top.InputBegan:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		draggingWindow = true
+		dragStart = input.Position
+		startPosition = main.Position
+	end
+end)
+
+UserInputService.InputChanged:Connect(function(input)
+	if draggingWindow and input.UserInputType == Enum.UserInputType.MouseMovement then
+		local delta = input.Position - dragStart
+
+		main.Position = UDim2.new(
+			startPosition.X.Scale,
+			startPosition.X.Offset + delta.X,
+			startPosition.Y.Scale,
+			startPosition.Y.Offset + delta.Y
+		)
+	end
+end)
+
+UserInputService.InputEnded:Connect(function(input)
+	if input.UserInputType == Enum.UserInputType.MouseButton1 then
+		draggingWindow = false
+	end
+end)
+
+--==================================================
+-- GUI TOGGLE
+--==================================================
+
+UserInputService.InputBegan:Connect(function(input, processed)
+	if processed then
+		return
+	end
+
+	if input.KeyCode == toggleKey then
+		main.Visible = not main.Visible
+	end
+end)
+
+--==================================================
+-- AUTO LOOP
+--==================================================
+
+task.spawn(function()
+	while true do
+		task.wait(0.1)
+
+		if autoTeleport then
+			teleportUnderNearestEnemy()
+		end
+	end
+end)
